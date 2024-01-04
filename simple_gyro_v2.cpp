@@ -15,12 +15,12 @@ int main() {
 
 
     // simulation parameters
-    double dt = 0.00001;
+    double dt = 0.0001;
     double t = 0.0;
-    double tmax = 200.0;
+    double tmax = 2000.0;
     double I1 = 10.0;
     double I2 = 10.0;
-    double I3 = 20.0;
+    double I3 = 2.0;
 
     //Initialize csv file
     std::ofstream output;
@@ -61,14 +61,61 @@ int main() {
         angular_acceleration[1] = torque_standard_basis[1]/I2 + ((I3-I1)/I2)*angularVelocity[2]*angularVelocity[0];
         angular_acceleration[2] = torque_standard_basis[2]/I3 + ((I1-I2)/I3)*angularVelocity[0]*angularVelocity[1];
 
-        // std::cout << torque_standard_basis[0]/I1 + ((I2-I3)/I1)*angularVelocity[1]*angularVelocity[2] << std::endl;
-        // std::cout << angular_acceleration[0] << std::endl;
-        // std::cout << angular_acceleration[1] << std::endl;
-        // std::cout << angular_acceleration[2] << std::endl;
-        // exit(1);
-        angularVelocity[0] += dt * angular_acceleration[0];
-        angularVelocity[1] += dt * angular_acceleration[1];
-        angularVelocity[2] += dt * angular_acceleration[2];
+        //Implement now using Runge-Kutta 4th order
+        // k1 = f(tn, yn)
+        // k2 = f(tn + h/2, yn + h/2*k1)
+        // k3 = f(tn + h/2, yn + h/2*k2)
+        // k4 = f(tn + h, yn + h*k3)
+        // yn+1 = yn + h/6*(k1 + 2*k2 + 2*k3 + k4)
+
+        // k1 = f(tn, yn)
+        std::vector<double> k1(3);
+        k1[0] = torque_standard_basis[0]/I1 + ((I2-I3)/I1)*angularVelocity[1]*angularVelocity[2];
+        k1[1] = torque_standard_basis[1]/I2 + ((I3-I1)/I2)*angularVelocity[2]*angularVelocity[0];
+        k1[2] = torque_standard_basis[2]/I3 + ((I1-I2)/I3)*angularVelocity[0]*angularVelocity[1];
+
+        // k2 = f(tn + h/2, yn + h/2*k1)
+        std::vector<double> k2(3);
+        std::vector<double> angularVelocity_k2(3);
+        //this is yn + h/2*k1
+        angularVelocity_k2[0] = angularVelocity[0] + dt/2*k1[0];
+        angularVelocity_k2[1] = angularVelocity[1] + dt/2*k1[1];
+        angularVelocity_k2[2] = angularVelocity[2] + dt/2*k1[2];
+        //this is now f(yn + h/2*k1)
+        k2[0] = torque_standard_basis[0]/I1 + ((I2-I3)/I1)*angularVelocity_k2[1]*angularVelocity_k2[2];
+        k2[1] = torque_standard_basis[1]/I2 + ((I3-I1)/I2)*angularVelocity_k2[2]*angularVelocity_k2[0];
+        k2[2] = torque_standard_basis[2]/I3 + ((I1-I2)/I3)*angularVelocity_k2[0]*angularVelocity_k2[1];
+
+        // k3 = f(tn + h/2, yn + h/2*k2)
+        std::vector<double> k3(3);
+        std::vector<double> angularVelocity_k3(3);
+        angularVelocity_k3[0] = angularVelocity[0] + dt/2*k2[0];
+        angularVelocity_k3[1] = angularVelocity[1] + dt/2*k2[1];
+        angularVelocity_k3[2] = angularVelocity[2] + dt/2*k2[2];
+        k3[0] = torque_standard_basis[0]/I1 + ((I2-I3)/I1)*angularVelocity_k3[1]*angularVelocity_k3[2];
+        k3[1] = torque_standard_basis[1]/I2 + ((I3-I1)/I2)*angularVelocity_k3[2]*angularVelocity_k3[0];
+        k3[2] = torque_standard_basis[2]/I3 + ((I1-I2)/I3)*angularVelocity_k3[0]*angularVelocity_k3[1];
+
+        // k4 = f(tn + h, yn + h*k3)
+        std::vector<double> k4(3);
+        std::vector<double> angularVelocity_k4(3);
+        angularVelocity_k4[0] = angularVelocity[0] + dt*k3[0];
+        angularVelocity_k4[1] = angularVelocity[1] + dt*k3[1];
+        angularVelocity_k4[2] = angularVelocity[2] + dt*k3[2];
+        k4[0] = torque_standard_basis[0]/I1 + ((I2-I3)/I1)*angularVelocity_k4[1]*angularVelocity_k4[2];
+        k4[1] = torque_standard_basis[1]/I2 + ((I3-I1)/I2)*angularVelocity_k4[2]*angularVelocity_k4[0];
+        k4[2] = torque_standard_basis[2]/I3 + ((I1-I2)/I3)*angularVelocity_k4[0]*angularVelocity_k4[1];
+
+        // yn+1 = yn + h/6*(k1 + 2*k2 + 2*k3 + k4)
+        std::vector<double> angular_acceleration_rk4(3);
+        angular_acceleration_rk4[0] = (k1[0] + 2*k2[0] + 2*k3[0] + k4[0])/6;
+        angular_acceleration_rk4[1] = (k1[1] + 2*k2[1] + 2*k3[1] + k4[1])/6;
+        angular_acceleration_rk4[2] = (k1[2] + 2*k2[2] + 2*k3[2] + k4[2])/6;
+
+        //Update angular velocity
+        angularVelocity[0] += angular_acceleration_rk4[0] * dt;
+        angularVelocity[1] += angular_acceleration_rk4[1] * dt;
+        angularVelocity[2] += angular_acceleration_rk4[2] * dt;
 
         //Rotate Position Vector
 
@@ -162,3 +209,4 @@ std::vector<double> normalize(std::vector<double> vec) {
     result.push_back(vec[2]/magnitude);
     return result;
 }
+

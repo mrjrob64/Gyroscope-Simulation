@@ -78,7 +78,7 @@ path_y = [point[1]]
 path_z = [point[2]]
 
 # Create an animation
-animation = FuncAnimation(fig, update, frames=200, interval=1)
+animation = FuncAnimation(fig, update, frames=1000, interval=1)
 
 # Display the animation
-animation.save('simple_gyro.gif', writer='imagemagick', fps=10)
+animation.save('simple_gyro.gif', writer='imagemagick', fps=24)
